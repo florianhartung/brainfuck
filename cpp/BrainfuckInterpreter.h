@@ -34,10 +34,6 @@ private:
 private:
     static constexpr uint16_t s_StartingCapacity = 1024;
 
-    static const std::unordered_set<char> s_BrainfuckInstructions;
-
-    std::unordered_map<char, std::function<void()>> m_TokenToAction;
-
     std::string m_Code;
     std::vector<uint8_t> m_Memory;
     std::stack<uint32_t> m_LoopBeginPointers;
