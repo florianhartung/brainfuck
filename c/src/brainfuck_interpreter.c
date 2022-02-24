@@ -1,101 +1,96 @@
 #include <malloc.h>
 #include <string.h>
 #include <windows.h>
+#include <stdio.h>
 
 #include "brainfuck_interpreter.h"
-#include "util.h"
 
-static void read_into_interpreter(InterpreterState* interpreter, const char* filename) {
-    read_file(filename, &interpreter->instructions, &interpreter->instruction_size);
-    interpreter->memory_size = DEFAULT_TAPE_SIZE;
-    interpreter->memory = calloc(DEFAULT_TAPE_SIZE, sizeof(uint8_t));
-    interpreter->cell = interpreter->memory;
-    interpreter->curr_instruction = interpreter->instructions;
-}
-
-InterpreterState* create_interpreter(const char* filename) {
+InterpreterState* create_interpreter(const size_t initial_memory_size,
+                                     char* instructions,
+                                     const size_t instruction_size) {
     InterpreterState* interpreter = malloc(sizeof(InterpreterState));
-    if(interpreter == NULL) {
-        printf("IN create_interpreter Interpreter is Null\n");
+    if (interpreter == NULL) {
+        fprintf(stderr, "[ERROR] Could not allocate memory for interpreter\n");
+        exit(EXIT_FAILURE);
     }
-    read_into_interpreter(interpreter, filename);
+
+    interpreter->instructions = instructions;
+    interpreter->instruction_size = instruction_size;
+    interpreter->instruction_pointer = interpreter->instructions;
+
+    interpreter->memory = calloc(initial_memory_size, sizeof(uint8_t));
+    interpreter->memory_size = initial_memory_size;
+    interpreter->memory_pointer = interpreter->memory;
+
     return interpreter;
 }
 
-void reset_interpreter(InterpreterState* interpreter, const char* filename) {
-    free(interpreter->memory);
-    free(interpreter->instructions);
-    interpreter->memory_size = DEFAULT_TAPE_SIZE;
-    interpreter->instruction_size = 0;
-    read_into_interpreter(interpreter, filename);
-}
 
 static void traverse_code(InterpreterState* interpreter) {
     int loopDepth = 0;
-    int direction = *interpreter->curr_instruction == '[' ? 1 : -1;
-    for(;*interpreter->curr_instruction != '\0'; interpreter->curr_instruction += direction) {
-        if(*interpreter->curr_instruction == '[')
+    int direction = *interpreter->instruction_pointer == '[' ? 1 : -1;
+    for (; *interpreter->instruction_pointer != '\0'; interpreter->instruction_pointer += direction) {
+        if (*interpreter->instruction_pointer == '[')
             loopDepth++;
-        else if(*interpreter->curr_instruction == ']')
+        else if (*interpreter->instruction_pointer == ']')
             loopDepth--;
 
-        if(loopDepth == 0) break;
+        if (loopDepth == 0) break;
     }
 }
 
 static void expand_memory(InterpreterState* interpreter, int move) {
-    uint8_t* buffer = realloc(interpreter->memory, interpreter->memory_size * 2 *  sizeof(uint8_t));
-    if(buffer == NULL) {
-        printf("[ERROR] Could not use realloc\n");
+    uint8_t* buffer = realloc(interpreter->memory, interpreter->memory_size * 2 * sizeof(uint8_t));
+    if (buffer == NULL) {
+        fprintf(stderr, "[ERROR] Could not use reallocate memory for an expansion of the brainfuck memory\n");
         exit(EXIT_FAILURE);
     }
     interpreter->memory = buffer;
-    if(move) {
+    if (move) {
         memmove(interpreter->memory + interpreter->memory_size, interpreter->memory, interpreter->memory_size);
-        interpreter->cell += interpreter->memory_size;
+        interpreter->memory_pointer += interpreter->memory_size;
     }
     interpreter->memory_size *= 2;
 }
 
 int interpret_code(InterpreterState* interpreter) {
-    for(; *interpreter->curr_instruction != '\0'; interpreter->curr_instruction++) {
-        char token = *interpreter->curr_instruction;
-        switch (token) {
-        case '+':
-            ++*interpreter->cell;
-            break;
-        case '-':
-            --*interpreter->cell;
-            break;
-        case '<':
-            if (--interpreter->cell < interpreter->memory) {
-                expand_memory(interpreter, 1);
-            }
-            break;
-        case '>':
-            if (++interpreter->cell == interpreter->memory + interpreter->memory_size) {
-                expand_memory(interpreter, 0);
-            }
-            break;
-        case '[':
-            if (!*interpreter->cell) {
-                traverse_code(interpreter);
-            }
-            break;
-        case ']':
-            if (*interpreter->cell) {
-                traverse_code(interpreter);
-            }
-            break;
-        case ',':
-            SetConsoleTitle("Waiting for user input...");
-            *interpreter->cell = getchar();
-            printf("\b \b");
-            SetConsoleTitle("");
-            break;
-        case '.':
-            putchar(*interpreter->cell);
-            break;
+    for (; *interpreter->instruction_pointer != '\0'; interpreter->instruction_pointer++) {
+        switch (*interpreter->instruction_pointer) {
+            case '+':
+                ++*interpreter->memory_pointer;
+                break;
+            case '-':
+                --*interpreter->memory_pointer;
+                break;
+            case '<':
+                if (--interpreter->memory_pointer < interpreter->memory) {
+                    expand_memory(interpreter, 1);
+                }
+                break;
+            case '>':
+                if (++interpreter->memory_pointer == interpreter->memory + interpreter->memory_size) {
+                    expand_memory(interpreter, 0);
+                }
+                break;
+            case '[':
+                if (!*interpreter->memory_pointer) {
+                    traverse_code(interpreter);
+                }
+                break;
+            case ']':
+                if (*interpreter->memory_pointer) {
+                    traverse_code(interpreter);
+                }
+                break;
+            case ',':
+                SetConsoleTitle("Waiting for user input...");
+                *interpreter->memory_pointer = getchar();
+                printf("\b \b");
+                SetConsoleTitle("");
+                break;
+            case '.':
+                putchar(*interpreter->memory_pointer);
+                break;
         }
     }
     return EXIT_SUCCESS;
