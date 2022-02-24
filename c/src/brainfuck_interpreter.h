@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-
 typedef struct {
     size_t memory_size;
     size_t instruction_size;
