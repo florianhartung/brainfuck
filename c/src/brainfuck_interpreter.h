@@ -3,20 +3,16 @@
 
 #include <stdint.h>
 
-#define DEFAULT_TAPE_SIZE 30000
-
-typedef struct {;
+typedef struct {
     size_t memory_size;
     size_t instruction_size;
     uint8_t* memory;
-    uint8_t* cell;
+    uint8_t* memory_pointer;
     char* instructions;
-    char* curr_instruction;
+    char* instruction_pointer;
 } InterpreterState;
 
-InterpreterState* create_interpreter(const char* filename);
-
-void reset_interpreter(InterpreterState* interpreter, const char* filename);
+InterpreterState* create_interpreter(size_t initial_memory_size, char* instructions, size_t instruction_size);
 
 int interpret_code(InterpreterState* interpreter);
 
